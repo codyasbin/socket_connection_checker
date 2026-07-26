@@ -63,6 +63,7 @@
             border-radius: 50%;
             background: #ff6b6b;
             animation: blink 2s infinite;
+            flex-shrink: 0;
         }
 
         .status-dot.connected {
@@ -88,6 +89,7 @@
             background: #f0f0f0;
             padding: 5px 10px;
             border-radius: 4px;
+            word-break: break-all;
         }
 
         .content {
@@ -105,6 +107,69 @@
             margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+
+        .url-input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .url-input-row input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .url-input-row input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .url-input-row input[type="text"]:disabled {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .url-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .url-preset-btn {
+            padding: 6px 10px;
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #555;
+            transition: all 0.2s ease;
+        }
+
+        .url-preset-btn:hover {
+            background: #e0e0e0;
+            border-color: #999;
+        }
+
+        .validation-msg {
+            font-size: 12px;
+            margin-bottom: 10px;
+            min-height: 16px;
+        }
+
+        .validation-msg.error {
+            color: #c62828;
+        }
+
+        .validation-msg.ok {
+            color: #2e7d32;
         }
 
         .messages-area {
@@ -225,6 +290,11 @@
             box-shadow: 0 10px 20px rgba(81, 207, 102, 0.3);
         }
 
+        .btn-connect:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .btn-disconnect {
             background: #ff6b6b;
             color: white;
@@ -296,6 +366,11 @@
             .status-bar {
                 flex-direction: column;
                 gap: 10px;
+                align-items: flex-start;
+            }
+
+            .url-input-row {
+                flex-direction: column;
             }
         }
     </style>
@@ -317,6 +392,20 @@
         </div>
 
         <div class="content">
+            <!-- URL Section -->
+            <div class="section">
+                <div class="section-title">🔗 Socket URL</div>
+                <div class="url-input-row">
+                    <input type="text" id="urlInput" placeholder="ws://localhost:8001/api/v1/order-requests/ws?tenant_slug=test&branch_id=1" value="ws://localhost:8001/api/v1/order-requests/ws?tenant_slug=test&branch_id=1">
+                </div>
+                <div class="url-presets">
+                    <button class="url-preset-btn" onclick="setUrl('ws://localhost:8001/api/v1/order-requests/ws?tenant_slug=test&branch_id=1')">Local Dev</button>
+                    <button class="url-preset-btn" onclick="setUrl('ws://localhost:8000/ws')">Local :8000/ws</button>
+                    <button class="url-preset-btn" onclick="setUrl('wss://echo.websocket.org')">Public Echo Test</button>
+                </div>
+                <div class="validation-msg" id="validationMsg"></div>
+            </div>
+
             <!-- Messages Section -->
             <div class="section">
                 <div class="section-title">📨 Messages</div>
@@ -354,9 +443,10 @@
 
     <script>
         let socket = null;
-        const SOCKET_URL = 'ws://localhost:8001/api/v1/order-requests/ws?tenant_slug=test&branch_id=1';
 
         // DOM Elements
+        const urlInput = document.getElementById('urlInput');
+        const validationMsg = document.getElementById('validationMsg');
         const messagesArea = document.getElementById('messagesArea');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -386,7 +476,39 @@
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
-        function updateStatus(connected) {
+        function setUrl(url) {
+            urlInput.value = url;
+            validateUrl();
+        }
+
+        function validateUrl() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                validationMsg.textContent = '';
+                validationMsg.className = 'validation-msg';
+                return false;
+            }
+            if (!/^wss?:\/\//i.test(url)) {
+                validationMsg.textContent = '⚠️ URL must start with ws:// or wss://';
+                validationMsg.className = 'validation-msg error';
+                return false;
+            }
+            try {
+                new URL(url);
+            } catch (e) {
+                validationMsg.textContent = '⚠️ Invalid URL format';
+                validationMsg.className = 'validation-msg error';
+                return false;
+            }
+            validationMsg.textContent = '✓ Valid WebSocket URL';
+            validationMsg.className = 'validation-msg ok';
+            return true;
+        }
+
+        urlInput.addEventListener('input', validateUrl);
+        validateUrl();
+
+        function updateStatus(connected, connecting = false) {
             if (connected) {
                 statusDot.classList.add('connected');
                 statusText.textContent = 'Connected ✓';
@@ -394,15 +516,17 @@
                 sendBtn.disabled = false;
                 connectBtn.disabled = true;
                 disconnectBtn.disabled = false;
-                socketUrlEl.textContent = `Connected to: ${SOCKET_URL}`;
+                urlInput.disabled = true;
+                socketUrlEl.textContent = `Connected to: ${urlInput.value.trim()}`;
             } else {
                 statusDot.classList.remove('connected');
-                statusText.textContent = 'Disconnected ✗';
+                statusText.textContent = connecting ? 'Connecting…' : 'Disconnected ✗';
                 messageInput.disabled = true;
                 sendBtn.disabled = true;
-                connectBtn.disabled = false;
-                disconnectBtn.disabled = true;
-                socketUrlEl.textContent = '';
+                connectBtn.disabled = connecting;
+                disconnectBtn.disabled = !connecting;
+                urlInput.disabled = connecting;
+                if (!connecting) socketUrlEl.textContent = '';
             }
         }
 
@@ -412,11 +536,19 @@
                 return;
             }
 
+            const url = urlInput.value.trim();
+
+            if (!validateUrl()) {
+                log('✗ Please enter a valid ws:// or wss:// URL before connecting', 'error');
+                return;
+            }
+
             try {
-                socket = new WebSocket(SOCKET_URL);
+                updateStatus(false, true);
+                socket = new WebSocket(url);
 
                 socket.onopen = () => {
-                    log('✓ Connected to socket successfully!', 'system');
+                    log(`✓ Connected to socket successfully! (${url})`, 'system');
                     updateStatus(true);
                 };
 
@@ -425,11 +557,11 @@
                 };
 
                 socket.onerror = (error) => {
-                    log(`✗ Socket error: ${error.message || 'Unknown error'}`, 'error');
+                    log(`✗ Socket error: ${error.message || 'Unknown error (check console / URL / server)'}`, 'error');
                 };
 
-                socket.onclose = () => {
-                    log('✗ Socket connection closed', 'system');
+                socket.onclose = (event) => {
+                    log(`✗ Socket connection closed (code: ${event.code}${event.reason ? ', reason: ' + event.reason : ''})`, 'system');
                     updateStatus(false);
                 };
             } catch (error) {
@@ -492,9 +624,16 @@
             }
         });
 
+        // Allow Enter key in URL field to connect
+        urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                connectSocket();
+            }
+        });
+
         // Initial log
-        log('💡 Tip: Click "Connect" to establish a socket connection', 'system');
-        log(`📍 Socket URL: ${SOCKET_URL}`, 'system');
+        log('💡 Tip: Enter a WebSocket URL above (or pick a preset) and click "Connect"', 'system');
     </script>
 </body>
 </html>
