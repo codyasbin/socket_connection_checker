@@ -95,7 +95,7 @@
 
         .workspace {
             display: grid;
-            grid-template-columns: minmax(320px, 0.92fr) minmax(480px, 1.38fr);
+            grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.7fr);
             gap: 18px;
         }
 
@@ -173,6 +173,32 @@
         }
 
         .field { margin-bottom: 18px; }
+
+        .headers-details {
+            margin-bottom: 18px;
+            border: 1px solid var(--line);
+            background: #f8fbf9;
+        }
+
+        .headers-details summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            color: var(--teal-dark);
+            cursor: pointer;
+            font: 700 11px Consolas, monospace;
+            letter-spacing: 0.6px;
+            list-style: none;
+            text-transform: uppercase;
+        }
+
+        .headers-details summary::-webkit-details-marker { display: none; }
+        .headers-details summary::after { content: "+"; font-size: 16px; }
+        .headers-details[open] summary::after { content: "-"; }
+        .headers-details[open] summary { border-bottom: 1px solid var(--line); }
+        .headers-details-content { padding: 12px; }
 
         .field-header {
             display: flex;
@@ -496,17 +522,17 @@
                     <input id="url" type="url" value="https://jsonplaceholder.typicode.com/posts/1" aria-label="Request URL">
                 </div>
 
-                <div class="field">
-                    <div class="field-header">
-                        <label>Headers</label>
-                        <button class="mini-action" type="button" id="addHeader">+ Add header</button>
+                <details class="headers-details">
+                    <summary><span>Request headers</span><span class="hint">Optional key/value pairs</span></summary>
+                    <div class="headers-details-content">
+                        <div class="header-builder" id="headerBuilder"></div>
+                        <div class="header-builder-footer">
+                            <span class="hint">Key/value pairs are sent as request headers.</span>
+                            <button class="mini-action" type="button" id="addHeader">+ Add header</button>
+                            <button class="mini-action" type="button" id="clearHeaders">Clear all</button>
+                        </div>
                     </div>
-                    <div class="header-builder" id="headerBuilder"></div>
-                    <div class="header-builder-footer">
-                        <span class="hint">Key/value pairs are sent as request headers.</span>
-                        <button class="mini-action" type="button" id="clearHeaders">Clear all</button>
-                    </div>
-                </div>
+                </details>
 
                 <div class="field">
                     <div class="field-header">
