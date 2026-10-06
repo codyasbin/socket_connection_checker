@@ -183,6 +183,44 @@
 
         .field-header label { margin-bottom: 0; }
 
+        .header-builder { display: grid; gap: 8px; }
+
+        .header-row {
+            display: grid;
+            grid-template-columns: minmax(100px, 0.7fr) minmax(120px, 1fr) 28px;
+            gap: 6px;
+        }
+
+        .header-row input { height: 38px; min-width: 0; font-family: Consolas, monospace; font-size: 12px; }
+
+        .remove-header {
+            height: 38px;
+            color: var(--red);
+            background: #fae9e6;
+            font-size: 16px;
+        }
+
+        .remove-header:hover { background: #f5d4cf; }
+
+        .header-builder-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .content-type-row {
+            display: grid;
+            grid-template-columns: 1fr 1.45fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .content-type-row select, .content-type-row input { height: 38px; font-size: 12px; }
+
+        .field-note { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
+
         .mini-action {
             border: 0;
             padding: 0;
@@ -460,24 +498,41 @@
 
                 <div class="field">
                     <div class="field-header">
-                        <label for="headers">Headers · JSON</label>
-                        <button class="mini-action" type="button" id="formatHeaders">Format</button>
+                        <label>Headers</label>
+                        <button class="mini-action" type="button" id="addHeader">+ Add header</button>
                     </div>
-                    <textarea class="code-input" id="headers" spellcheck="false">{
-  "Accept": "application/json"
-}</textarea>
+                    <div class="header-builder" id="headerBuilder"></div>
+                    <div class="header-builder-footer">
+                        <span class="hint">Key/value pairs are sent as request headers.</span>
+                        <button class="mini-action" type="button" id="clearHeaders">Clear all</button>
+                    </div>
                 </div>
 
                 <div class="field">
                     <div class="field-header">
-                        <label for="body">Body · JSON</label>
+                        <label for="body">Body</label>
                         <button class="mini-action" type="button" id="clearBody">Clear</button>
                     </div>
+                    <div class="content-type-row">
+                        <select id="bodyMode" aria-label="Body format">
+                            <option value="json">JSON</option>
+                            <option value="form">Form URL encoded</option>
+                            <option value="text">Plain text</option>
+                        </select>
+                        <select id="contentType" aria-label="Content type">
+                            <option value="application/json">application/json</option>
+                            <option value="application/x-www-form-urlencoded">application/x-www-form-urlencoded</option>
+                            <option value="text/plain">text/plain</option>
+                            <option value="custom">Custom content type...</option>
+                        </select>
+                    </div>
+                    <input id="customContentType" type="text" placeholder="Custom content type, e.g. application/xml" hidden>
                     <textarea class="code-input" id="body" spellcheck="false" placeholder="Request body is not used for GET or HEAD.">{
   "title": "A test request",
   "body": "Sent from REST API Tester",
   "userId": 1
 }</textarea>
+                    <p class="field-note" id="bodyNote">JSON is parsed and sent with the selected content type.</p>
                 </div>
 
                 <div class="request-actions">
@@ -538,8 +593,12 @@
         const form = document.getElementById('requestForm');
         const methodInput = document.getElementById('method');
         const urlInput = document.getElementById('url');
-        const headersInput = document.getElementById('headers');
+        const headerBuilder = document.getElementById('headerBuilder');
+        const bodyMode = document.getElementById('bodyMode');
+        const contentType = document.getElementById('contentType');
+        const customContentType = document.getElementById('customContentType');
         const bodyInput = document.getElementById('body');
+        const bodyNote = document.getElementById('bodyNote');
         const mockMode = document.getElementById('mockMode');
         const sendButton = document.getElementById('sendButton');
         const stateDot = document.getElementById('stateDot');
@@ -563,6 +622,34 @@
             } catch (error) {
                 throw new Error(`${label} is not valid JSON: ${error.message}`);
             }
+        }
+
+        function addHeader(name = '', value = '') {
+            const row = document.createElement('div');
+            row.className = 'header-row';
+            row.innerHTML = `<input type="text" class="header-name" placeholder="Header name" value="${name}" aria-label="Header name"><input type="text" class="header-value" placeholder="Value" value="${value}" aria-label="Header value"><button type="button" class="remove-header" aria-label="Remove header">&times;</button>`;
+            row.querySelector('.remove-header').addEventListener('click', () => row.remove());
+            headerBuilder.appendChild(row);
+        }
+
+        function collectHeaders() {
+            const headers = {};
+            headerBuilder.querySelectorAll('.header-row').forEach(row => {
+                const name = row.querySelector('.header-name').value.trim();
+                const value = row.querySelector('.header-value').value.trim();
+                if (name) headers[name] = value;
+            });
+            return headers;
+        }
+
+        function selectedContentType() {
+            return contentType.value === 'custom' ? customContentType.value.trim() : contentType.value;
+        }
+
+        function serializeBody(value, mode) {
+            if (mode === 'text') return value;
+            const parsed = parseJson(value, 'Body');
+            return mode === 'form' ? new URLSearchParams(parsed).toString() : JSON.stringify(parsed);
         }
 
         function pretty(value) {
@@ -632,10 +719,13 @@
 
             try {
                 if (!url) throw new Error('A request URL is required.');
-                const headers = parseJson(headersInput.value, 'Headers');
-                const body = parseJson(bodyInput.value, 'Body');
+                const headers = collectHeaders();
+                const body = bodyMode.value === 'text' ? bodyInput.value : parseJson(bodyInput.value, 'Body');
                 const hasBody = !['GET', 'HEAD'].includes(method) && bodyInput.value.trim();
-                const request = { method, url, headers, body: hasBody ? body : null };
+                const requestHeaders = { ...headers };
+                const requestContentType = selectedContentType();
+                if (hasBody && requestContentType) requestHeaders['Content-Type'] = requestContentType;
+                const request = { method, url, headers: requestHeaders, body: hasBody ? body : null };
                 const browserHeaders = [
                     { name: 'User-Agent', value: 'Browser-managed (not readable from page JavaScript)' },
                     { name: 'Host', value: 'Browser-managed (not readable from page JavaScript)' },
@@ -645,13 +735,13 @@
                 if (mockMode.checked) {
                     await new Promise(resolve => setTimeout(resolve, 280));
                     const duration = Math.round(performance.now() - started);
-                    showResult(request, { ok: true, source: 'local mock', receivedAt: new Date().toISOString(), echo: body }, duration, 'application/json', [['content-type', 'application/json'], ['x-mock-response', 'true']], browserHeaders);
+                    showResult(request, { ok: true, source: 'local mock', receivedAt: new Date().toISOString(), echo: body }, duration, requestContentType || 'application/json', [['content-type', requestContentType || 'application/json'], ['x-mock-response', 'true']], browserHeaders);
                     setState('success', 'Mock response received', '200 OK');
                     return;
                 }
 
-                const options = { method, headers };
-                if (hasBody) options.body = JSON.stringify(body);
+                const options = { method, headers: requestHeaders };
+                if (hasBody) options.body = serializeBody(bodyInput.value, bodyMode.value);
                 const response = await fetch(url, options);
                 const contentType = response.headers.get('content-type') || 'text/plain';
                 const rawResponse = await response.text();
@@ -676,11 +766,22 @@
             }
         }
 
-        document.getElementById('formatHeaders').addEventListener('click', () => {
-            try { headersInput.value = pretty(parseJson(headersInput.value, 'Headers')); } catch (error) { showError(error.message); }
-        });
-
+        addHeader('Accept', 'application/json');
+        document.getElementById('addHeader').addEventListener('click', () => addHeader());
+        document.getElementById('clearHeaders').addEventListener('click', () => { headerBuilder.innerHTML = ''; });
         document.getElementById('clearBody').addEventListener('click', () => { bodyInput.value = ''; });
+        contentType.addEventListener('change', () => { customContentType.hidden = contentType.value !== 'custom'; });
+        bodyMode.addEventListener('change', () => {
+            const notes = {
+                json: 'JSON is parsed and sent with the selected content type.',
+                form: 'Enter a JSON object; it will be sent as URL-encoded key/value pairs.',
+                text: 'Plain text is sent exactly as entered.'
+            };
+            bodyNote.textContent = notes[bodyMode.value];
+            if (bodyMode.value === 'form') contentType.value = 'application/x-www-form-urlencoded';
+            if (bodyMode.value === 'text') contentType.value = 'text/plain';
+            customContentType.hidden = contentType.value !== 'custom';
+        });
         form.addEventListener('submit', sendRequest);
         methodInput.addEventListener('change', () => {
             const noBody = ['GET', 'HEAD'].includes(methodInput.value);
