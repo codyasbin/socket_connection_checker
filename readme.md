@@ -1,1 +1,1 @@
-# Browser too to test socket as well as rest api connections for developers
+# Browser tool to test socket as well as rest api connections for developers
