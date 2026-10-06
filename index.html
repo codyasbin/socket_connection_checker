@@ -117,6 +117,27 @@
             border-radius: 4px;
         }
 
+        .socket-url-input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .socket-url-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .socket-url-input:disabled {
+            color: #777;
+            background: #f4f4f4;
+        }
+
         .content {
             padding: 20px;
         }
@@ -347,6 +368,11 @@
         </div>
 
         <div class="content">
+            <div class="section">
+                <div class="section-title">🔗 Socket URL</div>
+                <input class="socket-url-input" id="socketUrlInput" type="url" value="ws://localhost:8001/api/v1/order-requests/ws?tenant_slug=test&branch_id=1" aria-label="WebSocket URL">
+            </div>
+
             <!-- Messages Section -->
             <div class="section">
                 <div class="section-title">📨 Messages</div>
@@ -384,7 +410,6 @@
 
     <script>
         let socket = null;
-        const SOCKET_URL = 'ws://localhost:8001/api/v1/order-requests/ws?tenant_slug=test&branch_id=1';
 
         // DOM Elements
         const messagesArea = document.getElementById('messagesArea');
@@ -395,6 +420,11 @@
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const socketUrlEl = document.getElementById('socketUrl');
+        const socketUrlInput = document.getElementById('socketUrlInput');
+
+        function getSocketUrl() {
+            return socketUrlInput.value.trim();
+        }
 
         function log(message, type = 'system') {
             const timestamp = new Date().toLocaleTimeString();
@@ -424,7 +454,8 @@
                 sendBtn.disabled = false;
                 connectBtn.disabled = true;
                 disconnectBtn.disabled = false;
-                socketUrlEl.textContent = `Connected to: ${SOCKET_URL}`;
+                socketUrlInput.disabled = true;
+                socketUrlEl.textContent = `Connected to: ${getSocketUrl()}`;
             } else {
                 statusDot.classList.remove('connected');
                 statusText.textContent = 'Disconnected ✗';
@@ -432,6 +463,7 @@
                 sendBtn.disabled = true;
                 connectBtn.disabled = false;
                 disconnectBtn.disabled = true;
+                socketUrlInput.disabled = false;
                 socketUrlEl.textContent = '';
             }
         }
@@ -443,7 +475,15 @@
             }
 
             try {
-                socket = new WebSocket(SOCKET_URL);
+                const socketUrl = getSocketUrl();
+                const parsedUrl = new URL(socketUrl);
+                if (!['ws:', 'wss:'].includes(parsedUrl.protocol)) {
+                    throw new Error('URL must start with ws:// or wss://');
+                }
+                if (!parsedUrl.hostname) {
+                    throw new Error('Please enter a complete WebSocket URL.');
+                }
+                socket = new WebSocket(socketUrl);
 
                 socket.onopen = () => {
                     log('✓ Connected to socket successfully!', 'system');
@@ -524,7 +564,7 @@
 
         // Initial log
         log('💡 Tip: Click "Connect" to establish a socket connection', 'system');
-        log(`📍 Socket URL: ${SOCKET_URL}`, 'system');
+        log(`📍 Socket URL: ${getSocketUrl()}`, 'system');
     </script>
 </body>
 </html>
