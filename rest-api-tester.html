@@ -384,6 +384,15 @@
             border-bottom: 1px solid var(--line);
         }
 
+        .header-inspection summary {
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .header-inspection summary::-webkit-details-marker { display: none; }
+        .header-inspection summary::after { content: "+"; color: var(--teal-dark); font: 700 16px Consolas, monospace; }
+        .header-inspection[open] summary::after { content: "-"; }
+
         .inspect-heading strong {
             color: var(--teal-dark);
             font: 700 12px Consolas, monospace;
@@ -582,14 +591,16 @@
                     <div id="resultContent" hidden>
                         <div class="result-section">
                             <div class="inspect-block">
-                                <div class="inspect-heading">
-                                    <strong>Request headers</strong>
-                                    <span class="inspect-note">Configured + browser-managed context</span>
-                                </div>
-                                <table class="headers-table">
-                                    <thead><tr><th>Header</th><th>Value</th></tr></thead>
-                                    <tbody id="requestHeadersOutput"></tbody>
-                                </table>
+                                <details class="header-inspection">
+                                    <summary class="inspect-heading">
+                                        <strong>Request headers</strong>
+                                        <span class="inspect-note">Configured + browser-managed context</span>
+                                    </summary>
+                                    <table class="headers-table">
+                                        <thead><tr><th>Header</th><th>Value</th></tr></thead>
+                                        <tbody id="requestHeadersOutput"></tbody>
+                                    </table>
+                                </details>
                                 <div class="payload-label">Request line and payload</div>
                                 <pre id="requestOutput"></pre>
                             </div>
