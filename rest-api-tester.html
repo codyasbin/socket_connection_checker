@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REST API Tester</title>
+    <style>
+        :root {
+            --ink: #17202a;
+            --muted: #68737d;
+            --line: #d8dedb;
+            --paper: #f6f4ef;
+            --panel: #fffdf8;
+            --teal: #087f75;
+            --teal-dark: #075f59;
+            --coral: #d85d47;
+            --green: #247a57;
+            --red: #b33b35;
+            --shadow: 0 22px 60px rgba(23, 32, 42, 0.13);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.34;
+            background-image: radial-gradient(#c7d1cb 0.7px, transparent 0.7px);
+            background-size: 18px 18px;
+        }
+
+        .shell {
+            position: relative;
+            width: min(1320px, calc(100% - 36px));
+            margin: 34px auto;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--coral);
+            font-family: Consolas, monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+        }
+
+        h1, h2, p { margin-top: 0; }
+
+        h1 {
+            margin-bottom: 8px;
+            font-family: Georgia, serif;
+            font-size: clamp(30px, 4vw, 52px);
+            font-weight: 500;
+            letter-spacing: 0;
+            line-height: 1;
+        }
+
+        .subhead {
+            max-width: 680px;
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        .back-link {
+            color: var(--teal-dark);
+            font-family: Consolas, monospace;
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(320px, 0.92fr) minmax(480px, 1.38fr);
+            gap: 18px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            background: rgba(255, 253, 248, 0.94);
+            box-shadow: var(--shadow);
+        }
+
+        .request-panel { padding: 24px; }
+
+        .panel-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        h2 {
+            margin-bottom: 0;
+            font-family: Georgia, serif;
+            font-size: 22px;
+            font-weight: 500;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-family: Consolas, monospace;
+            font-size: 11px;
+        }
+
+        label {
+            display: block;
+            margin: 0 0 7px;
+            color: var(--muted);
+            font-family: Consolas, monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .url-row {
+            display: grid;
+            grid-template-columns: 116px 1fr;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        select, input, textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 3px;
+            color: var(--ink);
+            background: white;
+            font: inherit;
+        }
+
+        select, input { height: 44px; padding: 0 12px; }
+        textarea {
+            min-height: 148px;
+            padding: 12px;
+            resize: vertical;
+        }
+
+        select:focus, input:focus, textarea:focus {
+            outline: 2px solid rgba(8, 127, 117, 0.2);
+            border-color: var(--teal);
+        }
+
+        .code-input, pre, .summary-value {
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+        }
+
+        .field { margin-bottom: 18px; }
+
+        .field-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 7px;
+        }
+
+        .field-header label { margin-bottom: 0; }
+
+        .mini-action {
+            border: 0;
+            padding: 0;
+            color: var(--teal);
+            background: transparent;
+            cursor: pointer;
+            font: 700 11px Consolas, monospace;
+        }
+
+        .mini-action:hover { color: var(--coral); }
+
+        .request-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 3px;
+            cursor: pointer;
+            font: 700 12px "Trebuchet MS", sans-serif;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .send-button {
+            min-height: 44px;
+            padding: 0 22px;
+            color: white;
+            background: var(--teal);
+        }
+
+        .send-button:hover { background: var(--teal-dark); }
+        .send-button:disabled { cursor: wait; opacity: 0.62; }
+
+        .mock-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .mock-toggle input { width: 15px; height: 15px; accent-color: var(--teal); }
+
+        .results {
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            min-height: 650px;
+        }
+
+        .result-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 72px;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .result-state {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--muted);
+            font: 700 12px Consolas, monospace;
+        }
+
+        .state-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #a9b2ad;
+        }
+
+        .state-dot.success { background: var(--green); }
+        .state-dot.error { background: var(--red); }
+        .state-dot.loading { background: var(--coral); animation: pulse 0.9s infinite alternate; }
+
+        @keyframes pulse { to { opacity: 0.35; } }
+
+        .status-badge {
+            padding: 6px 9px;
+            color: var(--muted);
+            background: #edf0ed;
+            font: 700 11px Consolas, monospace;
+        }
+
+        .status-badge.success { color: var(--green); background: #e7f3ec; }
+        .status-badge.error { color: var(--red); background: #fae9e6; }
+
+        .request-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .summary-item {
+            min-height: 70px;
+            padding: 14px 18px;
+            border-right: 1px solid var(--line);
+        }
+
+        .summary-item:last-child { border-right: 0; }
+        .summary-label { display: block; margin-bottom: 7px; color: var(--muted); font: 10px Consolas, monospace; text-transform: uppercase; }
+        .summary-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .result-body { padding: 22px; }
+
+        .result-section { margin-bottom: 22px; }
+        .result-section:last-child { margin-bottom: 0; }
+        .result-title { margin-bottom: 8px; color: var(--muted); font: 700 11px Consolas, monospace; letter-spacing: 0.8px; text-transform: uppercase; }
+
+        pre {
+            overflow: auto;
+            min-height: 74px;
+            max-height: 220px;
+            margin: 0;
+            padding: 14px;
+            border: 1px solid var(--line);
+            color: #34434a;
+            background: #f0f3ef;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .error-box {
+            display: none;
+            padding: 14px;
+            border-left: 3px solid var(--red);
+            color: var(--red);
+            background: #fff1ee;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .error-box.visible { display: block; }
+
+        .empty-state {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 900px) {
+            .workspace { grid-template-columns: 1fr; }
+            .results { min-height: 0; }
+        }
+
+        @media (max-width: 560px) {
+            .shell { width: min(100% - 22px, 1320px); margin: 20px auto; }
+            .topbar { align-items: flex-start; flex-direction: column; gap: 14px; }
+            .request-panel, .result-body { padding: 16px; }
+            .url-row { grid-template-columns: 1fr; }
+            .request-summary { grid-template-columns: 1fr; }
+            .summary-item { border-right: 0; border-bottom: 1px solid var(--line); }
+            .summary-item:last-child { border-bottom: 0; }
+            .request-actions { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">HTTP / diagnostics</p>
+                <h1>REST API Tester</h1>
+                <p class="subhead">Compose a request, inspect exactly what was sent, and keep the response details visible beside it.</p>
+            </div>
+            <a class="back-link" href="index.html">&larr; Socket checker</a>
+        </header>
+
+        <section class="workspace">
+            <form class="panel request-panel" id="requestForm">
+                <div class="panel-heading">
+                    <h2>Request</h2>
+                    <span class="hint">fetch()</span>
+                </div>
+
+                <div class="url-row">
+                    <select id="method" aria-label="HTTP method">
+                        <option>GET</option>
+                        <option>POST</option>
+                        <option>PUT</option>
+                        <option>PATCH</option>
+                        <option>DELETE</option>
+                        <option>HEAD</option>
+                    </select>
+                    <input id="url" type="url" value="https://jsonplaceholder.typicode.com/posts/1" aria-label="Request URL">
+                </div>
+
+                <div class="field">
+                    <div class="field-header">
+                        <label for="headers">Headers · JSON</label>
+                        <button class="mini-action" type="button" id="formatHeaders">Format</button>
+                    </div>
+                    <textarea class="code-input" id="headers" spellcheck="false">{
+  "Accept": "application/json"
+}</textarea>
+                </div>
+
+                <div class="field">
+                    <div class="field-header">
+                        <label for="body">Body · JSON</label>
+                        <button class="mini-action" type="button" id="clearBody">Clear</button>
+                    </div>
+                    <textarea class="code-input" id="body" spellcheck="false" placeholder="Request body is not used for GET or HEAD.">{
+  "title": "A test request",
+  "body": "Sent from REST API Tester",
+  "userId": 1
+}</textarea>
+                </div>
+
+                <div class="request-actions">
+                    <button class="send-button" id="sendButton" type="submit">Send request</button>
+                    <label class="mock-toggle"><input id="mockMode" type="checkbox"> Use local mock response</label>
+                </div>
+            </form>
+
+            <section class="panel results" aria-live="polite">
+                <div class="result-head">
+                    <div class="result-state"><span class="state-dot" id="stateDot"></span><span id="stateText">Ready for a request</span></div>
+                    <span class="status-badge" id="statusBadge">--</span>
+                </div>
+                <div class="request-summary">
+                    <div class="summary-item"><span class="summary-label">Method</span><span class="summary-value" id="summaryMethod">--</span></div>
+                    <div class="summary-item"><span class="summary-label">Duration</span><span class="summary-value" id="summaryDuration">--</span></div>
+                    <div class="summary-item"><span class="summary-label">Response type</span><span class="summary-value" id="summaryType">--</span></div>
+                </div>
+                <div class="result-body">
+                    <div class="empty-state" id="emptyState">Your request and response dissection will appear here. Turn on local mock mode for an instant offline check.</div>
+                    <div id="resultContent" hidden>
+                        <div class="result-section">
+                            <div class="result-title">Request sent</div>
+                            <pre id="requestOutput"></pre>
+                        </div>
+                        <div class="result-section">
+                            <div class="result-title">Response received</div>
+                            <pre id="responseOutput"></pre>
+                        </div>
+                        <div class="error-box" id="errorBox"></div>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById('requestForm');
+        const methodInput = document.getElementById('method');
+        const urlInput = document.getElementById('url');
+        const headersInput = document.getElementById('headers');
+        const bodyInput = document.getElementById('body');
+        const mockMode = document.getElementById('mockMode');
+        const sendButton = document.getElementById('sendButton');
+        const stateDot = document.getElementById('stateDot');
+        const stateText = document.getElementById('stateText');
+        const statusBadge = document.getElementById('statusBadge');
+        const summaryMethod = document.getElementById('summaryMethod');
+        const summaryDuration = document.getElementById('summaryDuration');
+        const summaryType = document.getElementById('summaryType');
+        const emptyState = document.getElementById('emptyState');
+        const resultContent = document.getElementById('resultContent');
+        const requestOutput = document.getElementById('requestOutput');
+        const responseOutput = document.getElementById('responseOutput');
+        const errorBox = document.getElementById('errorBox');
+
+        function parseJson(value, label) {
+            if (!value.trim()) return {};
+            try {
+                return JSON.parse(value);
+            } catch (error) {
+                throw new Error(`${label} is not valid JSON: ${error.message}`);
+            }
+        }
+
+        function pretty(value) {
+            return JSON.stringify(value, null, 2);
+        }
+
+        function setState(type, text, status) {
+            stateDot.className = `state-dot ${type}`;
+            stateText.textContent = text;
+            statusBadge.textContent = status;
+            statusBadge.className = `status-badge ${type === 'success' ? 'success' : type === 'error' ? 'error' : ''}`;
+        }
+
+        function showError(message) {
+            emptyState.hidden = true;
+            resultContent.hidden = false;
+            errorBox.textContent = message;
+            errorBox.classList.add('visible');
+            setState('error', 'Request failed', 'ERROR');
+        }
+
+        function showResult(request, response, duration, responseType) {
+            emptyState.hidden = true;
+            resultContent.hidden = false;
+            errorBox.classList.remove('visible');
+            requestOutput.textContent = pretty(request);
+            responseOutput.textContent = typeof response === 'string' ? response : pretty(response);
+            summaryMethod.textContent = request.method;
+            summaryDuration.textContent = `${duration} ms`;
+            summaryType.textContent = responseType;
+        }
+
+        async function sendRequest(event) {
+            event.preventDefault();
+            const method = methodInput.value;
+            const url = urlInput.value.trim();
+            const started = performance.now();
+            sendButton.disabled = true;
+            setState('loading', 'Sending request...', 'WAIT');
+            summaryMethod.textContent = method;
+
+            try {
+                if (!url) throw new Error('A request URL is required.');
+                const headers = parseJson(headersInput.value, 'Headers');
+                const body = parseJson(bodyInput.value, 'Body');
+                const hasBody = !['GET', 'HEAD'].includes(method) && bodyInput.value.trim();
+                const request = { method, url, headers, body: hasBody ? body : null };
+
+                if (mockMode.checked) {
+                    await new Promise(resolve => setTimeout(resolve, 280));
+                    const duration = Math.round(performance.now() - started);
+                    showResult(request, { ok: true, source: 'local mock', receivedAt: new Date().toISOString(), echo: body }, duration, 'application/json');
+                    setState('success', 'Mock response received', '200 OK');
+                    return;
+                }
+
+                const options = { method, headers };
+                if (hasBody) options.body = JSON.stringify(body);
+                const response = await fetch(url, options);
+                const contentType = response.headers.get('content-type') || 'text/plain';
+                const rawResponse = await response.text();
+                let responseData = rawResponse;
+                if (contentType.includes('json') && rawResponse) {
+                    try { responseData = JSON.parse(rawResponse); } catch { responseData = rawResponse; }
+                }
+                const duration = Math.round(performance.now() - started);
+                showResult(request, responseData, duration, contentType.split(';')[0]);
+                summaryMethod.textContent = method;
+                setState(response.ok ? 'success' : 'error', response.ok ? 'Response received' : 'HTTP error received', `${response.status} ${response.statusText}`);
+                if (!response.ok) {
+                    errorBox.textContent = `The server returned HTTP ${response.status}. Inspect the response payload above for details.`;
+                    errorBox.classList.add('visible');
+                }
+            } catch (error) {
+                summaryDuration.textContent = `${Math.round(performance.now() - started)} ms`;
+                summaryType.textContent = 'network / client error';
+                showError(error.name === 'TypeError' ? 'The request could not be completed. This is commonly caused by CORS, an unreachable host, or an invalid URL.' : error.message);
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
+
+        document.getElementById('formatHeaders').addEventListener('click', () => {
+            try { headersInput.value = pretty(parseJson(headersInput.value, 'Headers')); } catch (error) { showError(error.message); }
+        });
+
+        document.getElementById('clearBody').addEventListener('click', () => { bodyInput.value = ''; });
+        form.addEventListener('submit', sendRequest);
+        methodInput.addEventListener('change', () => {
+            const noBody = ['GET', 'HEAD'].includes(methodInput.value);
+            bodyInput.disabled = noBody;
+            bodyInput.style.opacity = noBody ? '0.5' : '1';
+        });
+    </script>
+</body>
+</html>
